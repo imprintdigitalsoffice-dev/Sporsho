@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ফটো এডিটর — স্বাধীন স্পর্শ</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg:#FAF7F1;
+  --surface:#FFFFFF;
+  --border:#EEE6D8;
+  --text:#2B2620;
+  --text-muted:#7C7364;
+  --primary:#0F6B5C;
+  --primary-dark:#0B5347;
+  --primary-tint:rgba(15,107,92,0.08);
+  --accent:#D97706;
+  --accent-tint:rgba(217,119,6,0.1);
+  --shadow:0 4px 24px rgba(43,38,32,0.07);
+  --radius:16px;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Hind Siliguri','Noto Sans Bengali',-apple-system,sans-serif;
+  min-height:100vh; padding-bottom:60px;
+}
+button{ font-family:inherit; cursor:pointer; }
+input[type=number]{ font-family:inherit; }
+
+header{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:16px 20px;
+  position:sticky; top:0; z-index:20;
+}
+.header-inner{ max-width:760px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.brand-crumb{ font-size:13px; color:var(--text-muted); }
+.brand-crumb b{ color:var(--primary-dark); }
+
+.stepper{
+  max-width:760px; margin:14px auto 0; padding:0 20px;
+  display:flex; gap:6px;
+}
+.step-dot{
+  flex:1; height:5px; border-radius:3px; background:var(--border);
+  transition:background .25s ease;
+}
+.step-dot.done{ background:var(--primary); }
+.step-dot.active{ background:var(--accent); }
+
+.step-labels{
+  max-width:760px; margin:6px auto 0; padding:0 20px;
+  display:flex; justify-content:space-between;
+  font-size:11px; color:var(--text-muted);
+  font-family:'JetBrains Mono',monospace;
+}
+
+main{ max-width:760px; margin:0 auto; padding:26px 20px; }
+.panel{ display:none; }
+.panel.active{ display:block; animation:fadeIn .35s ease; }
+@keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+
+.panel h2{ font-size:18px; margin-bottom:6px; }
+.panel .hint{ font-size:13px; color:var(--text-muted); margin-bottom:20px; line-height:1.6; }
+
+/* Upload */
+.dropzone{
+  border:2px dashed var(--border);
+  border-radius:var(--radius);
+  padding:50px 20px;
+  text-align:center;
+  background:var(--surface);
+  cursor:pointer;
+  transition:border-color .2s ease, background .2s ease;
+}
+.dropzone:hover, .dropzone.dragover{ border-color:var(--primary); background:var(--primary-tint); }
+.dropzone .dz-icon{ font-size:36px; margin-bottom:12px; }
+.dropzone .dz-text{ font-size:14.5px; font-weight:600; margin-bottom:4px; }
+.dropzone .dz-sub{ font-size:12.5px; color:var(--text-muted); }
+#fileInput{ display:none; }
+
+/* Canvas work area */
+.canvas-wrap{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+  box-shadow:var(--shadow);
+  display:flex; justify-content:center;
+  margin-bottom:18px;
+  touch-action:none;
+}
+canvas{ max-width:100%; height:auto; border-radius:8px; background:
+  repeating-conic-gradient(#eee 0% 25%, #fafafa 0% 50%) 50% / 16px 16px; }
+
+.tool-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.tool-btn{
+  background:var(--surface); border:1px solid var(--border);
+  padding:9px 14px; border-radius:10px; font-size:13px; font-weight:600;
+  color:var(--text); display:flex; align-items:center; gap:6px;
+  transition:all .15s ease;
+}
+.tool-btn.on{ background:var(--primary); border-color:var(--primary); color:#fff; }
+.tool-btn:hover{ border-color:var(--primary); }
+
+.slider-row{ margin-bottom:16px; }
+.slider-row label{ font-size:12.5px; color:var(--text-muted); display:flex; justify-content:space-between; margin-bottom:6px; }
+.slider-row input[type=range]{ width:100%; accent-color:var(--primary); }
+
+.swatch-row{ display:flex; gap:10px; margin-bottom:18px; }
+.swatch{
+  width:40px; height:40px; border-radius:10px; border:2px solid var(--border);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-size:11px; color:var(--text-muted); position:relative;
+}
+.swatch.selected{ border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-tint); }
+.swatch-label{ font-size:11px; text-align:center; margin-top:4px; color:var(--text-muted); }
+.swatch-col{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+
+/* Size choice */
+.size-options{ display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.size-card{
+  flex:1; min-width:150px;
+  background:var(--surface); border:2px solid var(--border); border-radius:14px;
+  padding:16px; text-align:center; transition:all .15s ease;
+}
+.size-card.selected{ border-color:var(--primary); background:var(--primary-tint); }
+.size-card .s-title{ font-weight:700; font-size:14.5px; margin-bottom:4px; }
+.size-card .s-dim{ font-size:12px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+
+/* Sheet / print step */
+.sheet-controls{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; align-items:flex-end; }
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field label{ font-size:12px; color:var(--text-muted); }
+.field select, .field input[type=number]{
+  padding:10px 12px; border:1px solid var(--border); border-radius:10px;
+  font-size:14px; background:var(--surface); color:var(--text);
+}
+.max-note{ font-size:11.5px; color:var(--text-muted); }
+
+/* Nav buttons */
+.nav-row{ display:flex; justify-content:space-between; gap:10px; margin-top:22px; }
+.nav-btn{
+  border:none; padding:13px 26px; border-radius:12px; font-size:14.5px; font-weight:600;
+}
+.nav-btn.primary{ background:var(--primary); color:#fff; }
+.nav-btn.ghost{ background:var(--surface); border:1px solid var(--border); color:var(--text); }
+.nav-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+.download-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+.dl-btn{ background:var(--accent); color:#fff; border:none; padding:13px 22px; border-radius:12px; font-size:14px; font-weight:600; }
+.dl-btn.secondary{ background:var(--surface); border:1px solid var(--border); color:var(--text); }
+
+.note-box{
+  background:var(--accent-tint); border:1px solid rgba(217,119,6,0.25);
+  border-radius:12px; padding:12px 14px; font-size:12.5px; color:#8A5A05;
+  line-height:1.6; margin-top:18px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand-crumb"><a href="index.html" style="color:inherit; text-decoration:none;">← <b>স্বাধীন স্পর্শ</b></a> · ফটো এডিটর মডিউল</div>
+  </div>
+  <div class="stepper" id="stepper"></div>
+  <div class="step-labels">
+    <span>আপলোড</span><span>ব্যাকগ্রাউন্ড</span><span>সাইজ/ক্রপ</span><span>প্রিন্ট শিট</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- STEP 1: UPLOAD -->
+  <section class="panel active" id="panel-1">
+    <h2>ছবি আপলোড করুন</h2>
+    <div class="hint">যেকোনো ছবি দিন — স্টুডিওতে তোলা প্লেইন ব্যাকগ্রাউন্ড হোক বা বাইরের ছবি, দুটোই কাজ করবে।</div>
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="dz-icon">🖼️</div>
+      <div class="dz-text">ছবি সিলেক্ট করতে এখানে ক্লিক করুন</div>
+      <div class="dz-sub">অথবা এখানে ছবি ড্র্যাগ করে ছেড়ে দিন</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*">
+  </section>
+
+  <!-- STEP 2: BACKGROUND -->
+  <section class="panel" id="panel-2">
+    <h2>ব্যাকগ্রাউন্ড সরান</h2>
+    <div class="hint">প্লেইন ব্যাকগ্রাউন্ডে "স্বয়ংক্রিয়" বাটনে প্রায় নিখুঁত ফল পাবেন। জটিল ব্যাকগ্রাউন্ডে ব্রাশ দিয়ে হাতে ঠিক করে নিন।</div>
+
+    <div class="canvas-wrap"><canvas id="canvasBg" width="500" height="500"></canvas></div>
+
+    <div class="tool-row">
+      <button class="tool-btn" id="modeGemini" onclick="tryGeminiRemoval()">🔮 Gemini দিয়ে চেষ্টা করুন</button>
+      <button class="tool-btn on" id="modeAuto" onclick="setBgMode('auto')">✨ স্বয়ংক্রিয়</button>
+      <button class="tool-btn" id="modeClick" onclick="setBgMode('click')">🎯 ক্লিক করে মুছুন</button>
+      <button class="tool-btn" id="modeEraseBrush" onclick="setBgMode('eraseBrush')">🧹 ব্রাশ — মুছুন</button>
+      <button class="tool-btn" id="modeRestoreBrush" onclick="setBgMode('restoreBrush')">🩹 ব্রাশ — ফিরিয়ে আনুন</button>
+      <button class="tool-btn" onclick="resetMask()">↺ রিসেট</button>
+    </div>
+
+    <div class="slider-row" id="toleranceRow">
+      <label>সংবেদনশীলতা <span id="tolVal">40</span></label>
+      <input type="range" id="tolerance" min="5" max="100" value="40">
+    </div>
+    <div class="slider-row" id="brushRow" style="display:none">
+      <label>ব্রাশ সাইজ <span id="brushVal">30</span></label>
+      <input type="range" id="brushSize" min="5" max="80" value="30">
+    </div>
+
+    <div class="hint" style="margin-bottom:8px; font-weight:600;">ব্যাকগ্রাউন্ড রঙ</div>
+    <div class="swatch-row">
+      <div class="swatch-col">
+        <div class="swatch selected" data-bg="white" style="background:#fff" onclick="setBgColor('white', this)"></div>
+        <span class="swatch-label">সাদা</span>
+      </div>
+      <div class="swatch-col">
+        <div class="swatch" data-bg="blue" style="background:#4A6FA5" onclick="setBgColor('blue', this)"></div>
+        <span class="swatch-label">নীল</span>
+      </div>
+      <div class="swatch-col">
+        <div class="swatch" data-bg="transparent" style="background:repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50%/10px 10px" onclick="setBgColor('transparent', this)"></div>
+        <span class="swatch-label">স্বচ্ছ</span>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="nav-btn ghost" onclick="goToStep(1)">← পূর্ববর্তী</button>
+      <button class="nav-btn primary" onclick="goToStep(3)">পরবর্তী →</button>
+    </div>
+  </section>
+
+  <!-- STEP 3: SIZE & CROP -->
+  <section class="panel" id="panel-3">
+    <h2>সাইজ নির্বাচন ও ক্রপ</h2>
+    <div class="hint">সাইজ বেছে নিন, তারপর বক্সটি টেনে সরান ও কোণার হ্যান্ডেল টেনে ছোট-বড় করুন।</div>
+
+    <div class="size-options">
+      <div class="size-card selected" id="sizePassport" onclick="setSize('passport')">
+        <div class="s-title">পাসপোর্ট সাইজ</div>
+        <div class="s-dim">৩৫ × ৪৫ মিমি</div>
+      </div>
+      <div class="size-card" id="sizeStamp" onclick="setSize('stamp')">
+        <div class="s-title">স্ট্যাম্প সাইজ</div>
+        <div class="s-dim">২৫ × ২৫ মিমি</div>
+      </div>
+    </div>
+
+    <div class="canvas-wrap"><canvas id="canvasCrop" width="500" height="500"></canvas></div>
+
+    <div class="nav-row">
+      <button class="nav-btn ghost" onclick="goToStep(2)">← পূর্ববর্তী</button>
+      <button class="nav-btn primary" onclick="applyCropAndGoNext()">পরবর্তী →</button>
+    </div>
+  </section>
+
+  <!-- STEP 4: PRINT SHEET -->
+  <section class="panel" id="panel-4">
+    <h2>প্রিন্ট শিট তৈরি করুন</h2>
+    <div class="hint">কতগুলো কপি লাগবে লিখুন — বাকিটা স্বয়ংক্রিয়ভাবে সাজিয়ে দেওয়া হবে।</div>
+
+    <div class="sheet-controls">
+      <div class="field">
+        <label>শিট সাইজ</label>
+        <select id="sheetSize" onchange="renderSheet()">
+          <option value="4x6">৪×৬ ইঞ্চি (ফটো পেপার)</option>
+          <option value="a4">A4 পেপার</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>কপি সংখ্যা</label>
+        <input type="number" id="copyCount" min="1" value="1" onchange="renderSheet()">
+      </div>
+      <div class="max-note" id="maxNote"></div>
+    </div>
+
+    <div class="canvas-wrap"><canvas id="canvasSheet" width="600" height="900"></canvas></div>
+
+    <div class="download-row">
+      <button class="dl-btn" onclick="downloadCanvas(sheetCanvas,'print-sheet.png')">⬇ প্রিন্ট শিট ডাউনলোড</button>
+      <button class="dl-btn secondary" onclick="downloadCanvas(finalCroppedCanvas,'single-photo.png')">⬇ শুধু একটা ছবি ডাউনলোড</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="nav-btn ghost" onclick="goToStep(3)">← পূর্ববর্তী</button>
+      <button class="nav-btn ghost" onclick="location.reload()">↺ নতুন ছবি দিয়ে আবার শুরু</button>
+    </div>
+
+    <div class="note-box">
+      দুটো টুল এখন পাশাপাশি আছে — বিল্ট-ইন "স্বয়ংক্রিয়" (রঙ-ভিত্তিক, ফ্রি, ইন্টারনেট ছাড়াই কাজ করে) প্লেইন ব্যাকগ্রাউন্ডে ভালো ফল দেয়। জটিল ব্যাকগ্রাউন্ডে "🔮 Gemini দিয়ে চেষ্টা করুন" ব্যবহার করুন — এটার জন্য ব্যাকএন্ড সার্ভার চালু থাকতে হবে এবং প্রতি ছবিতে সামান্য খরচ হতে পারে।
+    </div>
+  </section>
+
+</main>
+
+<script>
+const WORK_MAX = 700;
+const DPI = 300;
+const MM_TO_PX = mm => Math.round(mm / 25.4 * DPI);
+const SIZES = {
+  passport: { label:'পাসপোর্ট', wMM:35, hMM:45 },
+  stamp: { label:'স্ট্যাম্প', wMM:25, hMM:25 }
+};
+const SHEETS = {
+  '4x6': { wIn:4, hIn:6 },
+  'a4': { wIn:8.27, hIn:11.69 }
+};
+
+// ফ্রন্টএন্ড এখন ব্যাকএন্ডের সাথে একই সার্ভার থেকে সার্ভ হয়, তাই খালি রাখলেই চলবে
+// (লোকাল টেস্টের সময়ও একই ভাবে কাজ করবে, যেহেতু server.js-ই এই ফাইল সার্ভ করছে)
+const BACKEND_URL = '';
+
+let workCanvas, workCtx, W, H;
+let originalImageData;   // pristine pixel data, never mutated — used for color sampling
+let maskAlpha;           // Uint8ClampedArray, 255 = foreground kept, 0 = background removed
+let originalFileDataUrl = null;  // আসল আপলোড করা ছবি (Gemini-তে পাঠানোর জন্য ফুল-কোয়ালিটি রাখা হয়)
+let bgColorMode = 'white';
+let bgMode = 'auto';
+let currentStep = 1;
+let selectedSize = 'passport';
+let cropRect = { x:0, y:0, w:0, h:0 };
+let finalCroppedCanvas = null;
+let sheetCanvas = null;
+
+/* ---------- Stepper UI ---------- */
+function renderStepper(){
+  const stepper = document.getElementById('stepper');
+  stepper.innerHTML = '';
+  for(let i=1;i<=4;i++){
+    const dot = document.createElement('div');
+    dot.className = 'step-dot' + (i < currentStep ? ' done' : i === currentStep ? ' active' : '');
+    stepper.appendChild(dot);
+  }
+}
+
+function goToStep(n){
+  currentStep = n;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  renderStepper();
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  if(n === 2) { renderBgCanvas(); }
+  if(n === 3) { initCropStep(); }
+  if(n === 4) { renderSheet(); }
+}
+
+/* ---------- Color distance ---------- */
+function colorDist(r1,g1,b1,r2,g2,b2){
+  const dr=r1-r2, dg=g1-g2, db=b1-b2;
+  return Math.sqrt(dr*dr+dg*dg+db*db);
+}
+
+/* ---------- Step 1: Upload ---------- */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', e => { if(e.target.files[0]) loadImageFile(e.target.files[0]); });
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault(); dropzone.classList.remove('dragover');
+  if(e.dataTransfer.files[0]) loadImageFile(e.dataTransfer.files[0]);
+});
+
+function loadImageFile(file){
+  if(!file.type.startsWith('image/')){ alert('দয়া করে একটি ছবি ফাইল দিন'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    originalFileDataUrl = ev.target.result;
+    const img = new Image();
+    img.onload = () => initWorkingCanvas(img);
+    img.onerror = () => alert('ছবিটি লোড করা যায়নি, আবার চেষ্টা করুন');
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setupWorkingCanvasFromImage(img){
+  let w = img.width, h = img.height;
+  const scale = Math.min(1, WORK_MAX / Math.max(w,h));
+  W = Math.round(w*scale); H = Math.round(h*scale);
+
+  workCanvas = document.createElement('canvas');
+  workCanvas.width = W; workCanvas.height = H;
+  workCtx = workCanvas.getContext('2d');
+  workCtx.drawImage(img, 0, 0, W, H);
+
+  originalImageData = workCtx.getImageData(0,0,W,H);
+  maskAlpha = new Uint8ClampedArray(W*H).fill(255);
+}
+
+function initWorkingCanvas(img){
+  setupWorkingCanvasFromImage(img);
+  goToStep(2);
+}
+
+/* ---------- Step 2: Background removal ---------- */
+const canvasBg = document.getElementById('canvasBg');
+const ctxBg = canvasBg.getContext('2d');
+
+function renderBgCanvas(){
+  canvasBg.width = W; canvasBg.height = H;
+  drawComposite(ctxBg, bgColorMode);
+  if(bgMode === 'auto') autoDetectBackground();
+}
+
+function pixelAt(data, x, y){
+  const i = (y*W+x)*4;
+  return [data[i], data[i+1], data[i+2]];
+}
+
+function floodFillFromSeed(sx, sy, tolerance){
+  const data = originalImageData.data;
+  const [sr,sg,sb] = pixelAt(data, sx, sy);
+  const stack = [[sx,sy]];
+  const queued = new Uint8Array(W*H);
+  queued[sy*W+sx] = 1;
+  while(stack.length){
+    const [x,y] = stack.pop();
+    const idx = y*W+x;
+    const i4 = idx*4;
+    const d = colorDist(data[i4],data[i4+1],data[i4+2], sr,sg,sb);
+    if(d <= tolerance){
+      maskAlpha[idx] = 0;
+      const neighbors = [[x-1,y],[x+1,y],[x,y-1],[x,y+1]];
+      for(const [nx,ny] of neighbors){
+        if(nx>=0 && nx<W && ny>=0 && ny<H){
+          const nidx = ny*W+nx;
+          if(!queued[nidx]){ queued[nidx]=1; stack.push([nx,ny]); }
+        }
+      }
+    }
+  }
+}
+
+function autoDetectBackground(){
+  resetMaskSilent();
+  const tol = parseInt(document.getElementById('tolerance').value,10);
+  const corners = [[0,0],[W-1,0],[0,H-1],[W-1,H-1]];
+  for(const [cx,cy] of corners) floodFillFromSeed(cx,cy,tol);
+  drawComposite(ctxBg, bgColorMode);
+}
+
+function resetMaskSilent(){ maskAlpha.fill(255); }
+function resetMask(){ resetMaskSilent(); drawComposite(ctxBg, bgColorMode); }
+
+function drawComposite(ctx, mode){
+  const out = ctx.createImageData(W,H);
+  const src = originalImageData.data;
+  for(let p=0;p<W*H;p++){
+    const i4=p*4;
+    out.data[i4]=src[i4]; out.data[i4+1]=src[i4+1]; out.data[i4+2]=src[i4+2];
+    out.data[i4+3] = maskAlpha[p];
+  }
+  ctx.clearRect(0,0,W,H);
+  if(mode === 'white'){ ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); }
+  else if(mode === 'blue'){ ctx.fillStyle='#4A6FA5'; ctx.fillRect(0,0,W,H); }
+  const tmp = document.createElement('canvas'); tmp.width=W; tmp.height=H;
+  tmp.getContext('2d').putImageData(out,0,0);
+  ctx.drawImage(tmp,0,0);
+}
+
+function setBgColor(mode, el){
+  bgColorMode = mode;
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  drawComposite(ctxBg, bgColorMode);
+}
+
+function setBgMode(mode){
+  bgMode = mode;
+  ['modeAuto','modeClick','modeEraseBrush','modeRestoreBrush'].forEach(id=>document.getElementById(id).classList.remove('on'));
+  const map = {auto:'modeAuto', click:'modeClick', eraseBrush:'modeEraseBrush', restoreBrush:'modeRestoreBrush'};
+  document.getElementById(map[mode]).classList.add('on');
+  document.getElementById('toleranceRow').style.display = (mode==='auto'||mode==='click') ? 'block' : 'none';
+  document.getElementById('brushRow').style.display = (mode==='eraseBrush'||mode==='restoreBrush') ? 'block' : 'none';
+  if(mode === 'auto') autoDetectBackground();
+}
+
+async function tryGeminiRemoval(){
+  if(!originalFileDataUrl){ return; }
+  const btn = document.getElementById('modeGemini');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ প্রসেস হচ্ছে...';
+
+  try{
+    const blob = await (await fetch(originalFileDataUrl)).blob();
+    const formData = new FormData();
+    formData.append('image', blob, 'photo.png');
+    formData.append('background', bgColorMode);
+
+    const res = await fetch(`${BACKEND_URL}/api/remove-background`, { method:'POST', body: formData });
+    if(!res.ok){
+      const errData = await res.json().catch(()=>({}));
+      throw new Error(errData.error || `সার্ভার এরর (${res.status})`);
+    }
+    const data = await res.json();
+
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('ফেরত আসা ছবি লোড করা যায়নি'));
+      img.src = `data:${data.mimeType||'image/png'};base64,${data.image}`;
+    });
+
+    setupWorkingCanvasFromImage(img);
+    canvasBg.width = W; canvasBg.height = H;
+    drawComposite(ctxBg, bgColorMode);
+  }catch(err){
+    alert('Gemini দিয়ে প্রসেস করা যায়নি: ' + err.message + '\n\nব্যাকএন্ড সার্ভার চালু আছে কিনা এবং BACKEND_URL ঠিকানা সঠিক কিনা চেক করুন।');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+document.getElementById('tolerance').addEventListener('input', e=>{
+  document.getElementById('tolVal').textContent = e.target.value;
+  if(bgMode==='auto') autoDetectBackground();
+});
+document.getElementById('brushSize').addEventListener('input', e=>{
+  document.getElementById('brushVal').textContent = e.target.value;
+});
+
+function canvasCoords(canvas, evt){
+  const rect = canvas.getBoundingClientRect();
+  const cx = (evt.touches? evt.touches[0].clientX : evt.clientX) - rect.left;
+  const cy = (evt.touches? evt.touches[0].clientY : evt.clientY) - rect.top;
+  return { x: Math.round(cx * canvas.width/rect.width), y: Math.round(cy * canvas.height/rect.height) };
+}
+
+function brushAt(x,y,radius,val){
+  const r2 = radius*radius;
+  for(let dy=-radius; dy<=radius; dy++){
+    for(let dx=-radius; dx<=radius; dx++){
+      if(dx*dx+dy*dy > r2) continue;
+      const px=x+dx, py=y+dy;
+      if(px>=0 && px<W && py>=0 && py<H) maskAlpha[py*W+px] = val;
+    }
+  }
+}
+
+let painting = false;
+function bgPointerDown(evt){
+  evt.preventDefault();
+  const {x,y} = canvasCoords(canvasBg, evt);
+  if(bgMode === 'click'){
+    const tol = parseInt(document.getElementById('tolerance').value,10);
+    floodFillFromSeed(x,y,tol);
+    drawComposite(ctxBg, bgColorMode);
+  } else if(bgMode === 'eraseBrush' || bgMode === 'restoreBrush'){
+    painting = true;
+    const size = parseInt(document.getElementById('brushSize').value,10);
+    brushAt(x,y,size, bgMode==='eraseBrush'?0:255);
+    drawComposite(ctxBg, bgColorMode);
+  }
+}
+function bgPointerMove(evt){
+  if(!painting) return;
+  evt.preventDefault();
+  const {x,y} = canvasCoords(canvasBg, evt);
+  const size = parseInt(document.getElementById('brushSize').value,10);
+  brushAt(x,y,size, bgMode==='eraseBrush'?0:255);
+  drawComposite(ctxBg, bgColorMode);
+}
+function bgPointerUp(){ painting = false; }
+
+canvasBg.addEventListener('mousedown', bgPointerDown);
+canvasBg.addEventListener('mousemove', bgPointerMove);
+window.addEventListener('mouseup', bgPointerUp);
+canvasBg.addEventListener('touchstart', bgPointerDown, {passive:false});
+canvasBg.addEventListener('touchmove', bgPointerMove, {passive:false});
+canvasBg.addEventListener('touchend', bgPointerUp);
+
+/* ---------- Step 3: Size & Crop ---------- */
+const canvasCrop = document.getElementById('canvasCrop');
+const ctxCrop = canvasCrop.getContext('2d');
+let compositedCanvas = null;
+
+function computeForegroundBBox(){
+  let minX=W, minY=H, maxX=0, maxY=0, found=false;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      if(maskAlpha[y*W+x] > 100){
+        found = true;
+        if(x<minX)minX=x; if(x>maxX)maxX=x;
+        if(y<minY)minY=y; if(y>maxY)maxY=y;
+      }
+    }
+  }
+  if(!found) return { x:0,y:0,w:W,h:H };
+  return { x:minX, y:minY, w:maxX-minX, h:maxY-minY };
+}
+
+function initCropStep(){
+  canvasCrop.width = W; canvasCrop.height = H;
+  compositedCanvas = document.createElement('canvas');
+  compositedCanvas.width = W; compositedCanvas.height = H;
+  drawComposite(compositedCanvas.getContext('2d'), bgColorMode);
+
+  const bbox = computeForegroundBBox();
+  const aspect = SIZES[selectedSize].wMM / SIZES[selectedSize].hMM;
+  let cropH = Math.min(H, bbox.h * 1.5);
+  let cropW = cropH * aspect;
+  if(cropW > W){ cropW = W; cropH = cropW/aspect; }
+  const cx = bbox.x + bbox.w/2;
+  cropRect = {
+    x: Math.max(0, Math.min(W-cropW, cx - cropW/2)),
+    y: Math.max(0, bbox.y - bbox.h*0.25),
+    w: cropW, h: cropH
+  };
+  drawCropOverlay();
+}
+
+function setSize(key){
+  selectedSize = key;
+  document.getElementById('sizePassport').classList.toggle('selected', key==='passport');
+  document.getElementById('sizeStamp').classList.toggle('selected', key==='stamp');
+  const aspect = SIZES[key].wMM / SIZES[key].hMM;
+  cropRect.h = cropRect.w / aspect;
+  if(cropRect.y + cropRect.h > H) cropRect.y = H - cropRect.h;
+  drawCropOverlay();
+}
+
+function drawCropOverlay(){
+  ctxCrop.clearRect(0,0,W,H);
+  ctxCrop.drawImage(compositedCanvas,0,0);
+  ctxCrop.fillStyle = 'rgba(20,15,10,0.55)';
+  ctxCrop.fillRect(0,0,W,H);
+  ctxCrop.save();
+  ctxCrop.beginPath();
+  ctxCrop.rect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+  ctxCrop.clip();
+  ctxCrop.drawImage(compositedCanvas,0,0);
+  ctxCrop.restore();
+  ctxCrop.strokeStyle = '#0F6B5C';
+  ctxCrop.lineWidth = 3;
+  ctxCrop.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+  const hx = cropRect.x+cropRect.w, hy = cropRect.y+cropRect.h;
+  ctxCrop.fillStyle = '#D97706';
+  ctxCrop.beginPath();
+  ctxCrop.arc(hx, hy, 10, 0, Math.PI*2);
+  ctxCrop.fill();
+}
+
+let dragMode = null, dragStart = null, cropStart = null;
+function cropPointerDown(evt){
+  evt.preventDefault();
+  const {x,y} = canvasCoords(canvasCrop, evt);
+  const hx = cropRect.x+cropRect.w, hy = cropRect.y+cropRect.h;
+  if(Math.hypot(x-hx, y-hy) < 22){ dragMode = 'resize'; }
+  else if(x>=cropRect.x && x<=cropRect.x+cropRect.w && y>=cropRect.y && y<=cropRect.y+cropRect.h){ dragMode='move'; }
+  else return;
+  dragStart = {x,y};
+  cropStart = {...cropRect};
+}
+function cropPointerMove(evt){
+  if(!dragMode) return;
+  evt.preventDefault();
+  const {x,y} = canvasCoords(canvasCrop, evt);
+  const dx = x-dragStart.x, dy = y-dragStart.y;
+  const aspect = SIZES[selectedSize].wMM / SIZES[selectedSize].hMM;
+  if(dragMode === 'move'){
+    cropRect.x = Math.max(0, Math.min(W-cropRect.w, cropStart.x+dx));
+    cropRect.y = Math.max(0, Math.min(H-cropRect.h, cropStart.y+dy));
+  } else if(dragMode === 'resize'){
+    let newW = Math.max(40, cropStart.w + dx);
+    newW = Math.min(newW, W-cropStart.x, (H-cropStart.y)*aspect);
+    cropRect.w = newW;
+    cropRect.h = newW/aspect;
+  }
+  drawCropOverlay();
+}
+function cropPointerUp(){ dragMode = null; }
+
+canvasCrop.addEventListener('mousedown', cropPointerDown);
+canvasCrop.addEventListener('mousemove', cropPointerMove);
+window.addEventListener('mouseup', cropPointerUp);
+canvasCrop.addEventListener('touchstart', cropPointerDown, {passive:false});
+canvasCrop.addEventListener('touchmove', cropPointerMove, {passive:false});
+canvasCrop.addEventListener('touchend', cropPointerUp);
+
+function applyCropAndGoNext(){
+  const targetW = MM_TO_PX(SIZES[selectedSize].wMM);
+  const targetH = MM_TO_PX(SIZES[selectedSize].hMM);
+  finalCroppedCanvas = document.createElement('canvas');
+  finalCroppedCanvas.width = targetW; finalCroppedCanvas.height = targetH;
+  const fctx = finalCroppedCanvas.getContext('2d');
+  fctx.drawImage(compositedCanvas, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0,0, targetW, targetH);
+  goToStep(4);
+}
+
+/* ---------- Step 4: Print sheet ---------- */
+const canvasSheet = document.getElementById('canvasSheet');
+
+function renderSheet(){
+  if(!finalCroppedCanvas) return;
+  const sheetKey = document.getElementById('sheetSize').value;
+  const sheet = SHEETS[sheetKey];
+  const sheetW = Math.round(sheet.wIn*DPI), sheetH = Math.round(sheet.hIn*DPI);
+  const photoW = finalCroppedCanvas.width, photoH = finalCroppedCanvas.height;
+  const gutter = 12, margin = 25;
+
+  const maxCols = Math.max(1, Math.floor((sheetW - 2*margin + gutter) / (photoW+gutter)));
+  const maxRows = Math.max(1, Math.floor((sheetH - 2*margin + gutter) / (photoH+gutter)));
+  const maxCopies = maxCols*maxRows;
+
+  const countInput = document.getElementById('copyCount');
+  let count = parseInt(countInput.value,10) || 1;
+  count = Math.max(1, Math.min(count, maxCopies));
+  countInput.value = count;
+  document.getElementById('maxNote').textContent = `এই শিটে সর্বোচ্চ ${maxCopies}টি কপি ধরবে`;
+
+  sheetCanvas = document.createElement('canvas');
+  sheetCanvas.width = sheetW; sheetCanvas.height = sheetH;
+  const ctx = sheetCanvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,sheetW,sheetH);
+
+  const rowsNeeded = Math.ceil(count/maxCols);
+  let remaining = count;
+  const totalBlockH = rowsNeeded*photoH + (rowsNeeded-1)*gutter;
+  let startY = (sheetH - totalBlockH)/2;
+
+  for(let r=0; r<rowsNeeded; r++){
+    const itemsInRow = Math.min(maxCols, remaining);
+    const rowW = itemsInRow*photoW + (itemsInRow-1)*gutter;
+    let startX = (sheetW - rowW)/2;
+    for(let c=0;c<itemsInRow;c++){
+      ctx.drawImage(finalCroppedCanvas, startX, startY, photoW, photoH);
+      startX += photoW+gutter;
+    }
+    startY += photoH+gutter;
+    remaining -= itemsInRow;
+  }
+
+  const displayCanvas = document.getElementById('canvasSheet');
+  const dispScale = Math.min(1, 480/sheetW);
+  const dispW = Math.round(sheetW*dispScale), dispH = Math.round(sheetH*dispScale);
+  displayCanvas.width = dispW; displayCanvas.height = dispH;
+  displayCanvas.getContext('2d').drawImage(sheetCanvas, 0,0, dispW, dispH);
+}
+
+function downloadCanvas(canvas, filename){
+  if(!canvas) return;
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+renderStepper();
+</script>
+</body>
+</html>

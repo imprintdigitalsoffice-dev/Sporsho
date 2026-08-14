@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>প্রিন্ট ম্যানেজার — স্বাধীন স্পর্শ</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg:#FAF7F1; --surface:#FFFFFF; --border:#EEE6D8;
+  --text:#2B2620; --text-muted:#7C7364;
+  --primary:#0F6B5C; --primary-dark:#0B5347; --primary-tint:rgba(15,107,92,0.08);
+  --accent:#D97706; --accent-tint:rgba(217,119,6,0.1);
+  --shadow:0 4px 24px rgba(43,38,32,0.07);
+  --radius:16px;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Hind Siliguri','Noto Sans Bengali',-apple-system,sans-serif;
+  min-height:100vh; padding-bottom:60px;
+}
+button{ font-family:inherit; cursor:pointer; }
+input{ font-family:inherit; }
+
+header{
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:16px 20px; position:sticky; top:0; z-index:20;
+}
+.header-inner{ max-width:640px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+.brand-crumb{ font-size:13px; color:var(--text-muted); }
+.brand-crumb b{ color:var(--primary-dark); }
+.rate-btn{
+  background:var(--surface); border:1px solid var(--border); padding:8px 14px;
+  border-radius:10px; font-size:12.5px; font-weight:600; color:var(--text);
+}
+.rate-btn:hover{ border-color:var(--primary); }
+
+main{ max-width:640px; margin:0 auto; padding:22px 20px; }
+
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow); margin-bottom:16px;
+}
+.card h2{ font-size:15.5px; margin-bottom:14px; }
+
+/* Rate settings */
+.rate-panel{ display:none; }
+.rate-panel.open{ display:block; }
+.rate-row{ display:flex; gap:12px; margin-bottom:12px; }
+.rate-field{ flex:1; }
+.rate-field label{ font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px; }
+.rate-field .input-group{ display:flex; align-items:center; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.rate-field .input-group span{ background:var(--bg); padding:10px 10px; font-size:13px; color:var(--text-muted); }
+.rate-field input{ border:none; padding:10px; width:100%; font-size:14px; outline:none; }
+.save-rate-btn{ background:var(--primary); color:#fff; border:none; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:600; }
+
+/* Type toggle */
+.toggle-group{ display:flex; gap:10px; margin-bottom:16px; }
+.toggle-btn{
+  flex:1; padding:14px; border:2px solid var(--border); border-radius:12px;
+  background:var(--surface); font-size:14px; font-weight:600; color:var(--text-muted);
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.toggle-btn .swatch{ width:20px; height:20px; border-radius:6px; }
+.toggle-btn.active{ border-color:var(--primary); background:var(--primary-tint); color:var(--primary-dark); }
+
+/* Number steppers */
+.field-row{ display:flex; gap:12px; margin-bottom:16px; }
+.field{ flex:1; }
+.field label{ font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px; }
+.stepper{ display:flex; align-items:center; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.stepper button{ background:var(--bg); border:none; width:38px; height:42px; font-size:16px; font-weight:700; color:var(--primary); }
+.stepper input{ border:none; text-align:center; width:100%; font-size:15px; font-weight:600; outline:none; }
+
+.add-btn{
+  width:100%; background:var(--accent); color:#fff; border:none; padding:13px;
+  border-radius:12px; font-size:14px; font-weight:700; margin-top:4px;
+}
+
+/* Cart */
+.cart-item{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:12px 0; border-bottom:1px solid var(--border);
+}
+.cart-item:last-child{ border-bottom:none; }
+.ci-desc{ font-size:13.5px; }
+.ci-desc .ci-sub{ font-size:11.5px; color:var(--text-muted); display:block; margin-top:2px; }
+.ci-right{ display:flex; align-items:center; gap:10px; }
+.ci-price{ font-weight:700; font-size:14px; font-family:'JetBrains Mono',monospace; }
+.ci-remove{ background:none; border:none; color:#C4523F; font-size:18px; padding:2px 6px; }
+
+.empty-cart{ text-align:center; color:var(--text-muted); font-size:13px; padding:20px 0; }
+
+.total-row{
+  display:flex; justify-content:space-between; align-items:center;
+  padding-top:14px; margin-top:6px; border-top:2px solid var(--border);
+}
+.total-row .t-label{ font-weight:700; font-size:15px; }
+.total-row .t-amount{ font-weight:800; font-size:20px; color:var(--primary-dark); font-family:'JetBrains Mono',monospace; }
+
+.customer-input{
+  width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:10px;
+  font-size:14px; margin-bottom:12px; outline:none;
+}
+.customer-input:focus{ border-color:var(--primary); }
+
+.bill-btn{
+  width:100%; background:var(--primary); color:#fff; border:none; padding:15px;
+  border-radius:12px; font-size:15px; font-weight:700;
+}
+.bill-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+/* Receipt overlay */
+.receipt-overlay{
+  display:none; position:fixed; inset:0; background:rgba(20,15,10,0.6);
+  align-items:center; justify-content:center; z-index:100; padding:20px;
+}
+.receipt-overlay.open{ display:flex; }
+.receipt-box{
+  background:#fff; border-radius:14px; padding:26px; max-width:380px; width:100%;
+  max-height:88vh; overflow-y:auto;
+}
+.receipt-box h3{ text-align:center; font-size:17px; margin-bottom:2px; }
+.receipt-sub{ text-align:center; font-size:11.5px; color:var(--text-muted); margin-bottom:16px; }
+.receipt-meta{ font-size:12px; color:var(--text-muted); margin-bottom:14px; display:flex; justify-content:space-between; }
+.receipt-line{ display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-bottom:1px dashed var(--border); }
+.receipt-total{ display:flex; justify-content:space-between; font-size:16px; font-weight:800; padding-top:12px; margin-top:8px; border-top:2px solid var(--text); }
+.receipt-actions{ display:flex; gap:10px; margin-top:20px; }
+.receipt-actions button{ flex:1; padding:12px; border-radius:10px; font-size:13.5px; font-weight:600; border:none; }
+.print-action{ background:var(--primary); color:#fff; }
+.close-action{ background:var(--bg); color:var(--text); border:1px solid var(--border) !important; }
+.receipt-footer{ text-align:center; font-size:10.5px; color:var(--text-muted); margin-top:16px; }
+
+/* History */
+.hist-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.hist-header h2{ margin-bottom:0; }
+.csv-btn{ background:var(--surface); border:1px solid var(--border); padding:7px 12px; border-radius:9px; font-size:12px; font-weight:600; }
+.hist-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:9px 0; border-bottom:1px solid var(--border); color:var(--text-muted); }
+.hist-row:last-child{ border-bottom:none; }
+.hist-row b{ color:var(--text); }
+.hist-summary{ display:flex; justify-content:space-between; padding-top:10px; margin-top:6px; border-top:2px solid var(--border); font-size:13px; font-weight:700; }
+
+.note-box{
+  background:var(--accent-tint); border:1px solid rgba(217,119,6,0.25);
+  border-radius:12px; padding:12px 14px; font-size:12px; color:#8A5A05; line-height:1.6;
+}
+
+.conn-banner{
+  display:none; background:#FBE9E7; border:1px solid #E8A79A; color:#A13B2A;
+  border-radius:12px; padding:12px 14px; font-size:12.5px; margin-bottom:16px; line-height:1.6;
+}
+
+@media print{
+  body *{ visibility:hidden; }
+  .receipt-box, .receipt-box *{ visibility:visible; }
+  .receipt-box{ position:absolute; top:0; left:0; max-height:none; box-shadow:none; }
+  .receipt-actions{ display:none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand-crumb"><a href="index.html" style="color:inherit; text-decoration:none;">← <b>স্বাধীন স্পর্শ</b></a> · প্রিন্ট ম্যানেজার</div>
+    <button class="rate-btn" onclick="toggleRatePanel()">⚙️ রেট সেটিংস</button>
+  </div>
+</header>
+
+<main>
+
+  <div class="conn-banner" id="connBanner">
+    ⚠️ ব্যাকএন্ড সার্ভারের সাথে সংযোগ করা যাচ্ছে না। রেট ও হিস্ট্রি সেভ/লোড হবে না। টার্মিনালে সার্ভার (npm start) চালু আছে কিনা চেক করুন।
+  </div>
+
+  <div class="card rate-panel" id="ratePanel">
+    <h2>প্রতি পাতার দাম</h2>
+    <div class="rate-row">
+      <div class="rate-field">
+        <label>কালার প্রিন্ট</label>
+        <div class="input-group"><span>৳</span><input type="number" id="rateColor" value="5" min="0" step="0.5"></div>
+      </div>
+      <div class="rate-field">
+        <label>সাদাকালো প্রিন্ট</label>
+        <div class="input-group"><span>৳</span><input type="number" id="rateBw" value="2" min="0" step="0.5"></div>
+      </div>
+    </div>
+    <button class="save-rate-btn" onclick="saveRates()">রেট সেভ করুন</button>
+  </div>
+
+  <div class="card">
+    <h2>নতুন আইটেম যোগ করুন</h2>
+    <div class="toggle-group">
+      <button class="toggle-btn active" id="typeColorBtn" onclick="setType('color')">
+        <span class="swatch" style="background:linear-gradient(90deg,#E63946,#2A9D8F,#F4A261)"></span>
+        কালার
+      </button>
+      <button class="toggle-btn" id="typeBwBtn" onclick="setType('bw')">
+        <span class="swatch" style="background:#444"></span>
+        সাদাকালো
+      </button>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>পাতা সংখ্যা</label>
+        <div class="stepper">
+          <button onclick="stepValue('pages',-1)">−</button>
+          <input type="number" id="pages" value="1" min="1">
+          <button onclick="stepValue('pages',1)">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>কপি সংখ্যা</label>
+        <div class="stepper">
+          <button onclick="stepValue('copies',-1)">−</button>
+          <input type="number" id="copies" value="1" min="1">
+          <button onclick="stepValue('copies',1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="add-btn" onclick="addToCart()">+ কার্টে যোগ করুন</button>
+  </div>
+
+  <div class="card">
+    <h2>বিল</h2>
+    <div id="cartList"><div class="empty-cart">এখনো কোনো আইটেম যোগ করা হয়নি</div></div>
+    <div class="total-row">
+      <span class="t-label">মোট</span>
+      <span class="t-amount" id="grandTotal">৳০</span>
+    </div>
+    <input type="text" class="customer-input" id="customerName" placeholder="কাস্টমারের নাম (ঐচ্ছিক)" style="margin-top:16px;">
+    <button class="bill-btn" id="billBtn" onclick="generateBill()" disabled>বিল তৈরি করুন ও প্রিন্ট করুন</button>
+  </div>
+
+  <div class="card">
+    <div class="hist-header">
+      <h2>প্রিন্ট হিস্ট্রি</h2>
+      <button class="csv-btn" onclick="downloadCSV()">⬇ CSV</button>
+    </div>
+    <div id="historyList"><div class="empty-cart">এখনো কোনো বিল তৈরি হয়নি</div></div>
+    <div class="hist-summary" id="historySummary" style="display:none;">
+      <span>মোট বিক্রি</span><span id="historyTotal">৳০</span>
+    </div>
+  </div>
+
+  <div class="note-box">
+    এই হিস্ট্রি এখন সার্ভারে (আপনার কম্পিউটারেই একটা ফাইলে) স্থায়ীভাবে সেভ হয় — পেজ রিলোড বা ব্রাউজার বন্ধ করলেও মুছে যাবে না। তবে এর জন্য ব্যাকএন্ড সার্ভার (npm start) সবসময় চালু থাকতে হবে — বন্ধ থাকলে রেট/হিস্ট্রি লোড বা নতুন বিল সেভ হবে না।
+  </div>
+
+</main>
+
+<div class="receipt-overlay" id="receiptOverlay">
+  <div class="receipt-box" id="receiptBox">
+    <h3>স্বাধীন স্পর্শ</h3>
+    <div class="receipt-sub">হাতের মুঠোয়, ডিজিটাল কম্পিউটার শপ</div>
+    <div class="receipt-meta">
+      <span id="rcptDate"></span>
+      <span id="rcptCustomer"></span>
+    </div>
+    <div id="rcptLines"></div>
+    <div class="receipt-total"><span>মোট</span><span id="rcptTotal">৳০</span></div>
+    <div class="receipt-footer">Powered By: IMPRINT DIGITAL</div>
+    <div class="receipt-actions">
+      <button class="print-action" onclick="window.print()">🖨️ প্রিন্ট করুন</button>
+      <button class="close-action" onclick="closeReceipt()">বন্ধ করুন</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ফ্রন্টএন্ড এখন ব্যাকএন্ডের সাথে একই সার্ভার থেকে সার্ভ হয়, তাই খালি রাখলেই চলবে
+const BACKEND_URL = '';
+
+let rates = { color: 5, bw: 2 };
+let currentType = 'color';
+let cart = [];
+let history = [];
+let cartIdCounter = 1;
+
+function toggleRatePanel(){
+  document.getElementById('ratePanel').classList.toggle('open');
+}
+async function saveRates(){
+  const color = parseFloat(document.getElementById('rateColor').value) || 0;
+  const bw = parseFloat(document.getElementById('rateBw').value) || 0;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/print/rates`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ color, bw })
+    });
+    if(!res.ok) throw new Error();
+    rates = { color, bw };
+    document.getElementById('ratePanel').classList.remove('open');
+  }catch(err){
+    alert('রেট সেভ করা যায়নি — ব্যাকএন্ড সার্ভার চালু আছে কিনা চেক করুন।');
+  }
+}
+
+function setType(type){
+  currentType = type;
+  document.getElementById('typeColorBtn').classList.toggle('active', type==='color');
+  document.getElementById('typeBwBtn').classList.toggle('active', type==='bw');
+}
+
+function stepValue(id, delta){
+  const el = document.getElementById(id);
+  const newVal = Math.max(1, (parseInt(el.value,10)||1) + delta);
+  el.value = newVal;
+}
+
+function addToCart(){
+  const pages = Math.max(1, parseInt(document.getElementById('pages').value,10) || 1);
+  const copies = Math.max(1, parseInt(document.getElementById('copies').value,10) || 1);
+  const rate = currentType === 'color' ? rates.color : rates.bw;
+  const totalPages = pages * copies;
+  const subtotal = totalPages * rate;
+
+  cart.push({
+    id: cartIdCounter++,
+    type: currentType,
+    pages, copies, rate, subtotal
+  });
+
+  document.getElementById('pages').value = 1;
+  document.getElementById('copies').value = 1;
+  renderCart();
+}
+
+function removeFromCart(id){
+  cart = cart.filter(item => item.id !== id);
+  renderCart();
+}
+
+function renderCart(){
+  const list = document.getElementById('cartList');
+  const billBtn = document.getElementById('billBtn');
+
+  if(cart.length === 0){
+    list.innerHTML = '<div class="empty-cart">এখনো কোনো আইটেম যোগ করা হয়নি</div>';
+    billBtn.disabled = true;
+  }else{
+    list.innerHTML = cart.map(item => `
+      <div class="cart-item">
+        <div class="ci-desc">
+          ${item.type === 'color' ? '🎨 কালার' : '⬛ সাদাকালো'} — ${toBn(item.pages)} পাতা × ${toBn(item.copies)} কপি
+          <span class="ci-sub">৳${toBn(item.rate)}/পাতা</span>
+        </div>
+        <div class="ci-right">
+          <span class="ci-price">৳${toBn(item.subtotal)}</span>
+          <button class="ci-remove" onclick="removeFromCart(${item.id})">×</button>
+        </div>
+      </div>
+    `).join('');
+    billBtn.disabled = false;
+  }
+
+  const total = cart.reduce((sum,i) => sum + i.subtotal, 0);
+  document.getElementById('grandTotal').textContent = '৳' + toBn(total);
+}
+
+async function generateBill(){
+  if(cart.length === 0) return;
+  const customerName = document.getElementById('customerName').value.trim();
+  const total = cart.reduce((sum,i) => sum + i.subtotal, 0);
+  const billBtn = document.getElementById('billBtn');
+  billBtn.disabled = true;
+  billBtn.textContent = 'সেভ হচ্ছে...';
+
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/print/jobs`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ customerName, items: cart, total })
+    });
+    if(!res.ok){
+      const errData = await res.json().catch(()=>({}));
+      throw new Error(errData.error || `সার্ভার এরর (${res.status})`);
+    }
+    const saved = await res.json();
+    history.unshift(saved);
+    showReceipt(saved);
+
+    cart = [];
+    document.getElementById('customerName').value = '';
+    renderCart();
+    renderHistory();
+  }catch(err){
+    alert('বিল সেভ করা যায়নি: ' + err.message + '\n\nব্যাকএন্ড সার্ভার চালু আছে কিনা চেক করুন। চিন্তা নেই, আপনার কার্টের তথ্য এখনো আছে — সার্ভার ঠিক হলে আবার "বিল তৈরি করুন" চাপুন।');
+  }finally{
+    billBtn.disabled = false;
+    billBtn.textContent = 'বিল তৈরি করুন ও প্রিন্ট করুন';
+  }
+}
+
+function showReceipt(bill){
+  const d = new Date(bill.createdAt);
+  document.getElementById('rcptDate').textContent =
+    d.toLocaleDateString('bn-BD', {day:'numeric', month:'short'}) + ', ' +
+    d.toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('rcptCustomer').textContent = bill.customerName ? ('কাস্টমার: ' + bill.customerName) : '';
+  document.getElementById('rcptLines').innerHTML = bill.items.map(item => `
+    <div class="receipt-line">
+      <span>${item.type==='color'?'কালার':'সাদাকালো'} ${toBn(item.pages)}×${toBn(item.copies)}</span>
+      <span>৳${toBn(item.subtotal)}</span>
+    </div>
+  `).join('');
+  document.getElementById('rcptTotal').textContent = '৳' + toBn(bill.total);
+  document.getElementById('receiptOverlay').classList.add('open');
+}
+
+function closeReceipt(){
+  document.getElementById('receiptOverlay').classList.remove('open');
+}
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  const summary = document.getElementById('historySummary');
+
+  if(history.length === 0){
+    list.innerHTML = '<div class="empty-cart">এখনো কোনো বিল তৈরি হয়নি</div>';
+    summary.style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = history.map(b => {
+    const timeStr = new Date(b.createdAt).toLocaleTimeString('bn-BD', {hour:'2-digit', minute:'2-digit'});
+    return `
+    <div class="hist-row">
+      <span>${timeStr} — ${b.customerName || '—'}</span>
+      <b>৳${toBn(b.total)}</b>
+    </div>
+    `;
+  }).join('');
+
+  const grand = history.reduce((sum,b) => sum + b.total, 0);
+  document.getElementById('historyTotal').textContent = '৳' + toBn(grand);
+  summary.style.display = 'flex';
+}
+
+function downloadCSV(){
+  if(history.length === 0){ alert('এখনো কোনো বিল তৈরি হয়নি'); return; }
+  let csv = 'সময়,কাস্টমার,বিবরণ,মোট (৳)\n';
+  history.forEach(b => {
+    const timeStr = new Date(b.createdAt).toLocaleString('bn-BD');
+    const desc = b.items.map(i => `${i.type==='color'?'কালার':'সাদাকালো'} ${i.pages}x${i.copies}`).join(' + ');
+    csv += `"${timeStr}","${b.customerName||''}","${desc}",${b.total}\n`;
+  });
+  const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `print-history-${new Date().toISOString().slice(0,10)}.csv`;
+  link.click();
+}
+
+function toBn(n){
+  const digits = ['০','১','২','৩','৪','৫','৬','৭','৮','৯'];
+  return String(Math.round(n*100)/100).split('').map(d => digits[d] ?? d).join('');
+}
+
+async function checkConnection(){
+  const banner = document.getElementById('connBanner');
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/health`);
+    banner.style.display = res.ok ? 'none' : 'block';
+  }catch(err){
+    banner.style.display = 'block';
+  }
+}
+
+async function init(){
+  await checkConnection();
+
+  try{
+    const rRes = await fetch(`${BACKEND_URL}/api/print/rates`);
+    if(rRes.ok){
+      rates = await rRes.json();
+      document.getElementById('rateColor').value = rates.color;
+      document.getElementById('rateBw').value = rates.bw;
+    }
+  }catch(err){ /* ব্যাকএন্ড না থাকলে ডিফল্ট রেট ব্যবহার হবে */ }
+
+  try{
+    const hRes = await fetch(`${BACKEND_URL}/api/print/jobs`);
+    if(hRes.ok){ history = await hRes.json(); }
+  }catch(err){ /* ব্যাকএন্ড না থাকলে হিস্ট্রি খালি থাকবে */ }
+
+  renderHistory();
+}
+
+init();
+</script>
+</body>
+</html>
